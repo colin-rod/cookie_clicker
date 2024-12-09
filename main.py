@@ -16,4 +16,14 @@ driver = webdriver.Firefox()
 # product_title = driver.find_element(By.XPATH,value='//*[@id="productTitle"]')
 # print(product_title.text)
 
+driver.get("https://www.python.org/")
+event = driver.find_element(By.XPATH,value="/html/body/div/div[3]/div/section/div[3]/div[2]/div/ul")
+lines = event.text.split('\n')
+
+event_dict = [
+    {'time': lines[i], 'event': lines[i+1]}
+    for i in range(0, len(lines), 2)
+]
+
+print(event_dict)
 driver.quit()
