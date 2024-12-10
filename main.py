@@ -1,29 +1,80 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+import time
+import threading
+
+def buy_upgrade(driver, item_list):
+    cookie_count = get_cookie_count(driver)
+    affordable_upgrades = {}
+    for cost, id in item_list.items():
+        if cookie_count > cost:
+            affordable_upgrades[cost] = id
+    print(affordable_upgrades)
+    highest_price_affordable_upgrade = max(affordable_upgrades) if affordable_upgrades else None
+    print(highest_price_affordable_upgrade)
+    to_purchase_id = affordable_upgrades[highest_price_affordable_upgrade] if highest_price_affordable_upgrade is not None else None
+
+    driver.find_element(by=By.ID, value=to_purchase_id).click()
+
+def get_cookie_count(driver):
+    money_element = driver.find_element(By.ID, value="money").text
+    if "," in money_element:
+        money_element = money_element.replace(",", "")
+    cookie_count = int(money_element)
+    print(cookie_count)
+    return cookie_count
+
+def continuous_clicking(cookie):
+    """
+    Continuously clicks the cookie
+    """
+    while True:
+        cookie.click()
 
 
+def get_item_list(driver,items):
+    all_prices = driver.find_elements(By.CSS_SELECTOR, value="#store b")
+    item_prices = []
 
-driver = webdriver.Firefox()
-# driver.get("https://www.amazon.de/-/en/CFI-1216A/dp/B0BRQCBK2W?ref_=Oct_d_Oct_d_ss_d_20904927031_2&pd_rd_w=GF2r9&content-id=amzn1.sym.26917e3c-85ac-4381-9b85-27bff6e99150&pf_rd_p=26917e3c-85ac-4381-9b85-27bff6e99150&pf_rd_r=5P446WPN7BKAG1EA5K1B&pd_rd_wg=n0cUb&pd_rd_r=9abeea99-191e-448b-8201-d4f9f9c18e13&pd_rd_i=B0BRQCBK2W")
-#
-# price_dollar = driver.find_element(By.CLASS_NAME,value="a-price-whole")
-# price_cents = driver.find_element(By.CLASS_NAME,value="a-price-fraction")
-# print(f"{price_dollar.text}.{price_cents.text}")
-#
-# search_bar = driver.find_element(By.NAME,value="field-keywords")
-# print(search_bar.tag_name)
-#
-# product_title = driver.find_element(By.XPATH,value='//*[@id="productTitle"]')
-# print(product_title.text)
+    # Convert <b> text into an integer price.
+    for price in all_prices:
+        element_text = price.text
+        if element_text != "":
+            cost = int(element_text.split("-")[1].strip().replace(",", ""))
+            item_prices.append(cost)
 
-driver.get("https://www.python.org/")
-event = driver.find_element(By.XPATH,value="/html/body/div/div[3]/div/section/div[3]/div[2]/div/ul")
-lines = event.text.split('\n')
+    # Create dictionary of store items and prices
+    cookie_upgrades = {}
+    for n in range(len(item_prices)):
+        cookie_upgrades[item_prices[n]] = items[n]
+    return cookie_upgrades
 
-event_dict = [
-    {'time': lines[i], 'event': lines[i+1]}
-    for i in range(0, len(lines), 2)
-]
+def get_cookies_per_second(driver):
+    cookies_per_second = driver.find_element(By.CSS_SELECTOR, value="#cps")
+    print(cookies_per_second.text)
 
-print(event_dict)
-driver.quit()
+def main():
+    # Setup WebDriver
+    driver = webdriver.Firefox()
+    driver.get("http://orteil.dashnet.org/experiments/cookie/")
+
+    # Find the cookie element
+    cookie = driver.find_element(By.ID, value="cookie")
+
+    item_list = driver.find_elements(By.CSS_SELECTOR, value="#store div")
+    items = [item.get_attribute("id") for item in item_list]
+
+    # Create threads for continuous clicking and periodic function
+    click_thread = threading.Thread(target=continuous_clicking, args=(cookie,), daemon=True)
+    click_thread.start()
+
+    # Periodic function execution
+    while True:
+        time.sleep(5)
+        item_list = get_item_list(driver,items)
+        buy_upgrade(driver, item_list)
+        get_cookies_per_second(driver)
+
+if __name__ == "__main__":
+    main()
